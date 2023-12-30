@@ -348,6 +348,10 @@ int main(int argc, char** argv) {
   // (which is redirected to recovery.log) as we used to do.
   android::base::InitLogging(argv, &UiLogger);
 
+  // enable adb
+  android::base::SetProperty("ro.adb.secure.recovery", "0");
+  android::base::SetProperty("ctl.restart", "adbd");
+
   // Take last pmsg contents and rewrite it to the current pmsg session.
   static constexpr const char filter[] = "recovery/";
   // Do we need to rotate?
