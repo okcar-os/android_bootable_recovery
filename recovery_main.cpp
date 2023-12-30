@@ -33,6 +33,8 @@
 
 #include <atomic>
 #include <filesystem>
+#include <iostream>
+#include <fstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -52,6 +54,7 @@
 
 #include "fastboot/fastboot.h"
 #include "install/wipe_data.h"
+#include "install/adb_install.h"
 #include "otautil/boot_state.h"
 #include "otautil/paths.h"
 #include "otautil/sysutil.h"
@@ -237,12 +240,16 @@ static void ListenRecoverySocket(RecoveryUI* ui, std::atomic<Device::BuiltinActi
     char msg;
     constexpr char kSwitchToFastboot = 'f';
     constexpr char kSwitchToRecovery = 'r';
+    constexpr char kSwitchToSideload = 's';
     ssize_t ret = TEMP_FAILURE_RETRY(read(connection_fd, &msg, sizeof(msg)));
     if (ret != sizeof(msg)) {
       PLOG(ERROR) << "Couldn't read from socket";
       continue;
     }
     switch (msg) {
+      case kSwitchToSideload:
+        action = Device::BuiltinAction::WIPE_DATA;
+        break;
       case kSwitchToRecovery:
         action = Device::BuiltinAction::ENTER_RECOVERY;
         break;
@@ -607,6 +614,21 @@ int main(int argc, char** argv) {
           fastboot = true;
         }
         break;
+
+      case Device::WIPE_DATA: {
+        std::string filepath = "/tmp/wipe_result.txt";
+        std::ofstream outfile(filepath, std::ios::trunc);
+
+        bool success = WipeData(device);
+        std::string result = success ? "true" : "false";
+
+        if (outfile.is_open()) {
+            outfile << result << std::endl;
+
+            outfile.close();
+        }
+      }
+      break;
 
       case Device::ENTER_RECOVERY:
         LOG(INFO) << "Entering recovery";
